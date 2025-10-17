@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+.env.production
+wallet.json
+encrypted-wallet.json
+.secrets/
+orders.json
+signer-addresses.json
+dist/
+build/
+*.log
+.DS_Store
+
