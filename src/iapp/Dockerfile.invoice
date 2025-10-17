@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json ./
+RUN npm install --production
+
+# Copy application code
+COPY invoiceProcessor.js ./
+
+# Set up iExec environment
+ENV IEXEC_IN=/iexec_in
+ENV IEXEC_OUT=/iexec_out
+
+# Create directories
+RUN mkdir -p /iexec_in /iexec_out
+
+# Set entrypoint
+ENTRYPOINT ["node", "invoiceProcessor.js"]

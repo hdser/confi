@@ -1,0 +1,12 @@
+{
+  "name": "confi-iapps",
+  "version": "1.0.0",
+  "description": "ConFi TEE Applications",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0",
+    "crypto-js": "^4.2.0"
+  }
+}
