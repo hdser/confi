@@ -1,0 +1,19 @@
+{
+  "description": "ConFi iApp configuration",
+  "wallet": {
+    "address": "",
+    "privateKey": ""
+  },
+  "chains": {
+    "421614": {
+      "id": "421614",
+      "host": "https://sepolia-rollup.arbitrum.io/rpc",
+      "hub": "0xC76A18c78B7e530A165c5683CB1aB134E21938B4"
+    },
+    "42161": {
+      "id": "42161", 
+      "host": "https://arb1.arbitrum.io/rpc",
+      "hub": "0x3eca1B216A7DF1C7689aEb259fFB83ADFB894E7f"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "projectName": "confi-finance-platform",
+  "version": "1.0.0",
+  "description": "Confidential finance operations on iExec",
+  "author": "ConFi Team",
+  "license": "MIT",
+  "apps": {
+    "invoice": {
+      "name": "confi-invoice-processor",
+      "entrypoint": "node invoiceProcessor.js",
+      "dockerfile": "Dockerfile.invoice"
+    },
+    "payroll": {
+      "name": "confi-payroll-processor",
+      "entrypoint": "node payrollProcessor.js",
+      "dockerfile": "Dockerfile.payroll"
+    }
+  },
+  "wallet": {
+    "address": "0x6Fa6927e1D00519aEb2925d1A0AEF2aDe6f09330"
+  }
+}

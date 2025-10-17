@@ -1,0 +1,13 @@
+{
+  "arbitrum": {
+    "invoiceIApp": "",
+    "payrollIApp": "",
+    "settlementContract": ""
+  },
+  "arbitrum-sepolia": {
+    "settlementContract": "0x5c4578C68f3456a4C46a7Cc66fE90087AEB97A19",
+    "deployedAt": "2025-10-17T19:24:08.922Z",
+    "deployer": "0x6Fa6927e1D00519aEb2925d1A0AEF2aDe6f09330",
+    "transactionHash": "0x4cb19cedb4247193288c8743b3e96832c8b0c63f7575bc7811870ddc7d9c9b4c"
+  }
+}
