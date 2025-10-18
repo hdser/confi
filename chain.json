@@ -1,19 +1,9 @@
 {
-  "default": "arbitrum-sepolia",
+  "default": "bellecour",
   "chains": {
-    "arbitrum": {
-      "id": "42161",
-      "host": "https://arb1.arbitrum.io/rpc",
-      "hub": "0x3eca1B216A7DF1C7689aEb259fFB83ADFB894E7f",
-      "native": "ETH",
-      "bridge": "0x0000000000000000000000000000000000000000"
-    },
-    "arbitrum-sepolia": {
-      "id": "421614",
-      "host": "https://sepolia-rollup.arbitrum.io/rpc",
-      "hub": "0xC76A18c78B7e530A165c5683CB1aB134E21938B4",
-      "native": "ETH",
-      "bridge": "0x0000000000000000000000000000000000000000"
-    }
+    "mainnet": {},
+    "goerli": {},
+    "viviani": {},
+    "bellecour": {}
   }
 }

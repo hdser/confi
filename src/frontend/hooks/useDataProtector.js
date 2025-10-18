@@ -6,6 +6,7 @@ export const useDataProtector = () => {
   const [dataProtector, setDataProtector] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     initializeDataProtector();
@@ -17,23 +18,51 @@ export const useDataProtector = () => {
         throw new Error('MetaMask not installed');
       }
       
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      if (accounts.length === 0) {
+        throw new Error('No accounts found');
+      }
+      
+      // Create Web3 provider
       const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send('eth_requestAccounts', []);
       const signer = await provider.getSigner();
       
-      const dp = new IExecDataProtector(signer);
+      // Initialize DataProtector with signer
+      const dp = new IExecDataProtector(signer, {
+        ipfsNode: 'https://ipfs.iex.ec',
+        ipfsGateway: 'https://gateway.ipfs.iex.ec'
+      });
+      
       setDataProtector(dp);
+      setConnected(true);
+      setError(null);
+      
+      console.log('DataProtector initialized successfully');
     } catch (err) {
+      console.error('Failed to initialize DataProtector:', err);
       setError(err.message);
+      setConnected(false);
     }
   };
 
   const protectData = async (data, name) => {
+    if (!dataProtector) {
+      throw new Error('DataProtector not initialized');
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
-      const result = await dataProtector.protectData({ data, name });
+      const result = await dataProtector.protectData({ 
+        data, 
+        name 
+      });
+      console.log('Data protected:', result.address);
       return result;
     } catch (err) {
       setError(err.message);
@@ -43,7 +72,11 @@ export const useDataProtector = () => {
     }
   };
 
-  const grantAccess = async (protectedData, authorizedApp) => {
+  const grantAccess = async (protectedData, authorizedApp, authorizedUser = ethers.ZeroAddress) => {
+    if (!dataProtector) {
+      throw new Error('DataProtector not initialized');
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -51,8 +84,9 @@ export const useDataProtector = () => {
       const result = await dataProtector.grantAccess({
         protectedData,
         authorizedApp,
-        authorizedUser: ethers.ZeroAddress
+        authorizedUser
       });
+      console.log('Access granted');
       return result;
     } catch (err) {
       setError(err.message);
@@ -62,15 +96,24 @@ export const useDataProtector = () => {
     }
   };
 
-  const processProtectedData = async (protectedData, app) => {
+  const processProtectedData = async (protectedData, app, maxPrice = 0, args = '', inputFiles = [], secrets = {}) => {
+    if (!dataProtector) {
+      throw new Error('DataProtector not initialized');
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
       const result = await dataProtector.processProtectedData({
         protectedData,
-        app
+        app,
+        maxPrice,
+        args,
+        inputFiles,
+        secrets
       });
+      console.log('Processing started, task ID:', result.taskId);
       return result;
     } catch (err) {
       setError(err.message);
@@ -81,8 +124,14 @@ export const useDataProtector = () => {
   };
 
   const getResult = async (taskId) => {
+    if (!dataProtector) {
+      throw new Error('DataProtector not initialized');
+    }
+    
     try {
-      const result = await dataProtector.getResultFromCompletedTask({ taskId });
+      const result = await dataProtector.getResultFromCompletedTask({ 
+        taskId 
+      });
       return result;
     } catch (err) {
       if (!err.message.includes('not completed')) {
@@ -92,6 +141,10 @@ export const useDataProtector = () => {
     }
   };
 
+  const reconnect = async () => {
+    await initializeDataProtector();
+  };
+
   return {
     dataProtector,
     protectData,
@@ -99,6 +152,10 @@ export const useDataProtector = () => {
     processProtectedData,
     getResult,
     loading,
-    error
+    error,
+    connected,
+    reconnect
   };
 };
+
+export default useDataProtector;

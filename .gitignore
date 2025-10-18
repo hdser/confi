@@ -13,3 +13,9 @@ build/
 .DS_Store
 package-lock.json 
 
+signing-keys.env
+signing-keys.json
+src/iapp/cache/
+src/iapp/iapp-payroll.config.json
+src/iapp/iapp.config.backup.json
+src/iapp/app-secret-invoice.json

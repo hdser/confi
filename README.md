@@ -1,798 +1,381 @@
 # ConFi: Confidential Finance Platform
 
-A privacy-preserving financial operations platform built on iExec's confidential computing infrastructure. ConFi provides enterprise-grade invoicing and payroll capabilities with hardware-enforced confidentiality through Trusted Execution Environments (TEEs).
+Privacy-preserving invoice and payroll processing platform built on iExec's confidential computing infrastructure. ConFi processes sensitive financial data inside Intel SGX enclaves, ensuring complete privacy while enabling on-chain settlement.
 
----
-
-## 🎯 Overview
-
-ConFi is a **fully decentralized alternative to Request.finance** that processes all sensitive financial data within Intel SGX enclaves. Unlike traditional platforms that require trusting a centralized operator with your data, ConFi ensures:
-
-- ✅ **Zero-knowledge processing**: Platform never sees your financial data
-- ✅ **Hardware-enforced privacy**: Intel SGX TEE protection
-- ✅ **Verifiable computation**: Cryptographic proof of correct execution
-- ✅ **On-chain settlement**: Smart contract-based payments
-- ✅ **Enterprise features**: QuickBooks/Xero/ADP exports, approval workflows, recurring invoices
-
-### Key Features
-
-| Feature | ConFi | Request.finance | Advantage |
-|---------|-------|-----------------|-----------|
-| Data Privacy | End-to-end encrypted in TEE | Visible to platform | 100% confidential |
-| Trust Model | Hardware + Blockchain | Platform operator | Trustless |
-| Gas Optimization | Batch processing (90% savings) | Individual transactions | Cost efficient |
-| Accounting Export | QuickBooks, Xero, ADP | Limited | Enterprise ready |
-| Open Source | MIT License | Proprietary | Community driven |
-
----
-
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend DApp (React)                   │
-│          User creates invoices/payroll in browser            │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│              DataProtector SDK (Client-side)                 │
-│   • Encrypts sensitive data (AES-256)                        │
-│   • Stores encrypted data on IPFS                            │
-│   • Registers ownership on-chain (NFT)                       │
-│   • Sets access controls                                     │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                iExec PoCo Protocol (On-chain)                │
-│   • Matches computation orders                              │
-│   • Creates secure deal                                      │
-│   • Assigns task to TEE-enabled worker                       │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│            iApp Execution (Intel SGX Enclave)                │
-│   • Decrypts data inside TEE                                 │
-│   • Validates business logic                                 │
-│   • Calculates totals                                        │
-│   • Generates cryptographically signed voucher               │
-│   • Creates accounting exports                               │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Encrypted Result (IPFS + On-chain)              │
-│   • Signed payment voucher                                   │
-│   • Accounting export data                                   │
-│   • Task completion proof on-chain                           │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│           Settlement Contract (On-chain Payment)             │
-│   • Verifies voucher signature                               │
-│   • Executes ERC-20 token transfer                           │
-│   • Emits payment event                                      │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────────┐
+│   Frontend  │────▶│DataProtector │────▶│  TEE iApp   │────▶│  Settlement  │
+│   (React)   │     │  (Encrypt)   │     │  (Process)  │     │  (Contract)  │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────────┘
+      User              Client-side         Intel SGX          On-chain
+    Interface           Encryption          Enclave            Payment
 ```
 
----
+## 🚀 Quick Start
 
-## 📋 Prerequisites
+### Prerequisites
 
-### Required Software
 - **Node.js v20+** ([Download](https://nodejs.org))
-- **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop))
-- **Git** ([Download](https://git-scm.com))
+- **Docker Desktop** ([Download](https://docker.com/products/docker-desktop)) - Must be running
 - **MetaMask** browser extension ([Install](https://metamask.io))
+- **iApp CLI**: `npm install -g @iexec/iapp`
+- **Arbitrum Sepolia ETH** ([Faucet](https://faucet.quicknode.com/arbitrum/sepolia))
+- **RLC Tokens** ([iExec Faucet](https://explorer.iex.ec/arbitrum-sepolia/faucet))
+- **DockerHub Account** ([Sign up](https://hub.docker.com))
 
-### Required Accounts
-- **DockerHub account** (free) - [Sign up](https://hub.docker.com/signup)
-- **Arbitrum wallet** with funds:
-  - **ETH on Arbitrum Sepolia** (testnet) or Arbitrum One (mainnet) for gas
-  - **RLC tokens** for computation fees
-
-### Getting Testnet Funds (Arbitrum Sepolia)
-
-1. **Get Arbitrum Sepolia ETH:**
-   ```bash
-   # Visit the faucet
-   open https://faucet.quicknode.com/arbitrum/sepolia
-   # Connect MetaMask and request ETH
-   ```
-
-2. **Get RLC tokens:**
-   ```bash
-   # Visit iExec faucet
-   open https://explorer.iex.ec/arbitrum-sepolia/faucet
-   # Connect MetaMask and claim RLC
-   ```
-
----
-
-## 🚀 Installation & Deployment
-
-### Step 1: Clone and Install
+### Installation
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/your-org/confi-platform.git
 cd confi-platform
 
-# Install dependencies (this uses the corrected package.json with dataprotector@2.0.0-beta.19)
+# Install dependencies
 npm install
 
-# Install iExec CLI tools globally
-npm install -g iexec
+# Install iApp CLI globally
 npm install -g @iexec/iapp
-```
 
-### Step 2: Environment Configuration
-
-```bash
-# Create environment file
+# Create environment configuration
 cp .env.example .env
-
-# Edit with your values
-nano .env
+# Edit .env with your configuration (see Environment Setup below)
 ```
 
-**Required `.env` configuration:**
+## 📋 Complete Deployment Workflow
+
+### Step 1: Environment Setup
+
+Create `.env` file with the following:
 
 ```bash
-# Network Configuration (testnet)
+# Network Configuration
 NETWORK=arbitrum-sepolia
 RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
 CHAIN_ID=421614
 
-# Your deployment wallet private key (NEVER COMMIT THIS)
+# Your wallet private key (NEVER commit this)
 PRIVATE_KEY=0xYourPrivateKeyHere
 
-# DockerHub credentials (for pushing iApp images)
-DOCKER_USERNAME=your_dockerhub_username
-DOCKER_PASSWORD=your_dockerhub_password
-
-# These will be populated after deployment
+# Will be populated during deployment
+SETTLEMENT_CONTRACT=
 INVOICE_IAPP_ADDRESS=
 PAYROLL_IAPP_ADDRESS=
-SETTLEMENT_CONTRACT=
 
-# Frontend configuration
+# DockerHub credentials
+DOCKER_USERNAME=your-dockerhub-username
+
+# Frontend configuration (duplicate values for React)
 REACT_APP_NETWORK=arbitrum-sepolia
 REACT_APP_CHAIN_ID=421614
+REACT_APP_SETTLEMENT_CONTRACT=
+REACT_APP_INVOICE_IAPP_ADDRESS=
+REACT_APP_PAYROLL_IAPP_ADDRESS=
 ```
 
-**For production (Arbitrum mainnet):**
-```bash
-NETWORK=arbitrum
-RPC_URL=https://arb1.arbitrum.io/rpc
-CHAIN_ID=42161
-```
-
-### Step 3: Wallet Setup for iExec
+### Step 2: Deploy Settlement Contract
 
 ```bash
-# Option A: Create new wallet
-iexec wallet create
-
-# Option B: Import existing wallet
-iexec wallet import <your_private_key>
-
-# Verify wallet
-iexec wallet show
-
-# Expected output:
-# address: 0x742d35Cc6634C0532925a3b844Bc9e7595f0fA9b
-# balance: 1.5 ETH | 100 RLC
-```
-
-### Step 4: Deploy Smart Contracts
-
-```bash
-# Deploy the settlement contract
+# Deploy the settlement smart contract
 npm run deploy:contracts
 
-# Example output:
-# 🚀 Deploying ConFi Smart Contracts...
-# Deploying to arbitrum-sepolia
-# Deployer address: 0x742d35Cc...
-# Balance: 1.5 ETH
+# Output example:
+# ✅ Settlement deployed at: 0x996b21dB6deD9D7D763C98d64EA536cf51061887
 # 
-# Deploying ConfidentialFinanceSettlement...
-# ✅ Settlement deployed at: 0x1234567890abcdef...
-# 
-# ✅ Deployment complete!
+# Update your .env file with the contract address
 ```
 
-**Update your `.env`:**
+### Step 3: Complete Setup (Keys & Configuration)
+
 ```bash
-SETTLEMENT_CONTRACT=0x1234567890abcdef...  # Copy from output
+# This script will:
+# 1. Generate signing keys for TEE vouchers
+# 2. Configure app secrets in iapp.config.json
+# 3. Authorize signers in the settlement contract
+npm run setup:complete
+
+# Output:
+# ✅ Keys generated and saved to signing-keys.json
+# ✅ App secrets configured in iapp.config.json
+# ✅ Signers authorized in settlement contract
 ```
 
-### Step 5: Build and Deploy iApps
+### Step 4: Deploy iApps
 
-#### 5.1 Login to DockerHub
 ```bash
-# Login to push images
-docker login
-# Username: your_dockerhub_username
-# Password: your_dockerhub_password
-```
+# Option 1: Deploy using the automated script
+npm run deploy:iapps
 
-#### 5.2 Build iApp Docker Images
-```bash
-# Build Invoice Processor
-docker build -t ${DOCKER_USERNAME}/confi-invoice:latest -f src/iapp/Dockerfile.invoice src/iapp
-
-# Build Payroll Processor
-docker build -t ${DOCKER_USERNAME}/confi-payroll:latest -f src/iapp/Dockerfile.payroll src/iapp
-
-# Verify images
-docker images | grep confi
-```
-
-#### 5.3 Push to DockerHub
-```bash
-docker push ${DOCKER_USERNAME}/confi-invoice:latest
-docker push ${DOCKER_USERNAME}/confi-payroll:latest
-
-# Verify on DockerHub
-open https://hub.docker.com/u/${DOCKER_USERNAME}
-```
-
-#### 5.4 Deploy to iExec Network
-```bash
-# Navigate to iApp directory
+# Option 2: Deploy manually
 cd src/iapp
 
-# Initialize iApp configuration (one-time)
-iapp init
+# Deploy invoice processor
+docker build -t ${DOCKER_USERNAME}/confi-invoice:latest -f Dockerfile.invoice . --platform linux/amd64
+docker push ${DOCKER_USERNAME}/confi-invoice:latest
+iapp deploy --chain arbitrum-sepolia-testnet
 
-# Deploy Invoice iApp
-iapp deploy --chain arbitrum-sepolia
-
-# When prompted, enter:
-# - Docker image: your_username/confi-invoice:latest
-# - TEE framework: scone (Intel SGX)
-
-# Save the deployed address from output:
-# ✅ iApp deployed at: 0xabcdef1234567890...
-
-# Repeat for Payroll iApp
-iapp deploy --chain arbitrum-sepolia
-# Docker image: your_username/confi-payroll:latest
+# Deploy payroll processor (using separate config)
+docker build -t ${DOCKER_USERNAME}/confi-payroll:latest -f Dockerfile.payroll . --platform linux/amd64
+docker push ${DOCKER_USERNAME}/confi-payroll:latest
+iapp deploy --chain arbitrum-sepolia-testnet --config iapp-payroll.config.json
 
 cd ../..
 ```
 
-**Update your `.env`:**
+### Step 5: Update Environment with Deployed Addresses
+
+After deployment, update your `.env` file:
+
 ```bash
-INVOICE_IAPP_ADDRESS=0xabcdef1234567890...  # Invoice iApp
-PAYROLL_IAPP_ADDRESS=0xfedcba0987654321...  # Payroll iApp
+# Add the deployed iApp addresses
+INVOICE_IAPP_ADDRESS=0x2E7C6b329f2F96c8ee2D915Bd1f50370d84604C5
+PAYROLL_IAPP_ADDRESS=0xYourPayrollAppAddress
+
+# Also update React app environment
+REACT_APP_SETTLEMENT_CONTRACT=0x996b21dB6deD9D7D763C98d64EA536cf51061887
+REACT_APP_INVOICE_IAPP_ADDRESS=0x2E7C6b329f2F96c8ee2D915Bd1f50370d84604C5
+REACT_APP_PAYROLL_IAPP_ADDRESS=0xYourPayrollAppAddress
 ```
 
-### Step 6: Setup Signing Keys
+### Step 6: Start Frontend Application
 
 ```bash
-# Generate signing keys, push to SMS, authorize in settlement contract
-npm run setup:signers
-
-# Example output:
-# 🔐 Setting up ConFi Signers...
-# 
-# Generated Invoice Signer: 0xABCD...
-# Generated Payroll Signer: 0xEFGH...
-# 
-# Pushing secrets to iExec SMS...
-# ✅ INVOICE_SIGNING_KEY pushed
-# ✅ PAYROLL_SIGNING_KEY pushed
-# 
-# Authorizing signers in settlement contract...
-# ✅ Authorized invoice signer: 0xABCD...
-# ✅ Authorized payroll signer: 0xEFGH...
-# 
-# ✅ Signer setup complete!
-```
-
-### Step 7: Publish App Orders
-
-```bash
-# Make iApps discoverable on iExec marketplace
-npm run publish:orders
-
-# Example output:
-# 📤 Publishing iExec Orders...
-# 
-# Publishing invoice app order...
-# ✅ Invoice app order published
-# Order hash: 0x123...
-# 
-# Publishing payroll app order...
-# ✅ Payroll app order published
-# Order hash: 0x456...
-# 
-# ✅ All orders published successfully!
-```
-
-### Step 8: Verify Deployment
-
-```bash
-# Run comprehensive verification
-npm run verify
-
-# Example output:
-# 🔍 Verifying ConFi Deployment...
-# 
-# Network: arbitrum-sepolia
-# Chain ID: 421614
-# 
-# Deployed Contracts:
-# Settlement Contract: 0x1234...
-#   Status: ✅ Deployed
-#   Invoice Signer (0xABCD...): ✅
-#   Payroll Signer (0xEFGH...): ✅
-# 
-# iApps:
-# Invoice iApp: 0xabcd...
-#   Status: ✅ Registered
-# Payroll iApp: 0xfedc...
-#   Status: ✅ Registered
-# 
-# ✅ Deployment verification complete!
-```
-
-### Step 9: Start Frontend
-
-#### Development Mode
-```bash
-# Start development server with hot reload
+# Development mode with hot reload
 npm run dev
+# Access at http://localhost:3000
 
-# Access at: http://localhost:3000
-```
-
-#### Production Build
-```bash
-# Build optimized production bundle
+# Production build
 npm run build
-
-# Serve locally
-npx serve dist -p 3000
-
-# Or deploy to hosting service
-vercel deploy dist
-# or
-netlify deploy --prod --dir=dist
+npm run start
 ```
 
----
+## 💼 How ConFi Works
 
-## 🧪 Testing & Usage
+### Invoice Processing Flow
 
-### Test Invoice Creation (CLI)
+1. **Create Invoice**: User enters invoice details in web form
+2. **Encrypt Data**: DataProtector encrypts all sensitive data client-side
+3. **Grant Access**: Encrypted data access granted to TEE iApp
+4. **TEE Processing**: iApp decrypts data inside Intel SGX, validates, and signs voucher
+5. **Return Voucher**: Cryptographically signed payment authorization returned
+6. **Claim Payment**: Submit voucher to settlement contract for automatic payment
 
-```bash
-node << 'EOF'
-const { IExecDataProtector } = require('@iexec/dataprotector');
-const { ethers } = require('ethers');
+### Payroll Processing Flow
 
-async function testInvoice() {
-  // Setup
-  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-  const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-  const dataProtector = new IExecDataProtector(wallet);
-  
-  console.log('Creating test invoice...');
-  
-  // Create invoice data
-  const invoice = {
-    metadata: {
-      invoiceNumber: 'TEST-001',
-      paymentTerms: 'NET30',
-      currency: 'USDC'
-    },
-    parties: {
-      issuer: {
-        address: wallet.address,
-        businessName: 'My Company Inc',
-        email: 'billing@mycompany.com'
-      },
-      client: {
-        address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0fA9b',
-        businessName: 'Client Corp',
-        email: 'accounts@client.com'
-      }
-    },
-    lineItems: [{
-      description: 'Professional Services - Q4 2024',
-      quantity: 1,
-      unitPrice: '5000000000', // 5000 USDC (6 decimals)
-      taxRate: 0.10 // 10%
-    }],
-    calculations: {
-      subtotal: '5000000000',
-      totalTax: '500000000',
-      grandTotal: '5500000000'
-    },
-    payment: {
-      tokenContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-      chainId: 421614
-    }
-  };
-  
-  // Step 1: Protect data
-  console.log('Encrypting invoice data...');
-  const { address: protectedDataAddress } = await dataProtector.protectData({
-    data: invoice,
-    name: 'Test Invoice TEST-001'
-  });
-  console.log('✅ Protected at:', protectedDataAddress);
-  
-  // Step 2: Grant access to iApp
-  console.log('Granting access to invoice iApp...');
-  await dataProtector.grantAccess({
-    protectedData: protectedDataAddress,
-    authorizedApp: process.env.INVOICE_IAPP_ADDRESS,
-    authorizedUser: ethers.ZeroAddress // Anyone can process
-  });
-  console.log('✅ Access granted');
-  
-  // Step 3: Process in TEE
-  console.log('Starting confidential processing...');
-  const { taskId } = await dataProtector.processProtectedData({
-    protectedData: protectedDataAddress,
-    app: process.env.INVOICE_IAPP_ADDRESS
-  });
-  console.log('✅ Task started:', taskId);
-  console.log('Monitor at: https://explorer.iex.ec/arbitrum-sepolia/' + taskId);
-  
-  // Step 4: Wait for result (polling)
-  console.log('Waiting for task completion (30-90s)...');
-  let result = null;
-  for (let i = 0; i < 60; i++) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    try {
-      result = await dataProtector.getResultFromCompletedTask({ taskId });
-      if (result) break;
-    } catch (e) {
-      if (!e.message.includes('not completed')) throw e;
-    }
-    process.stdout.write('.');
-  }
-  
-  if (result) {
-    console.log('\n✅ Invoice processed successfully!');
-    console.log('Voucher:', JSON.stringify(result.voucher, null, 2));
-  } else {
-    console.log('\n⏱️ Task still processing. Check status later.');
-  }
-}
+1. **Create Batch**: HR prepares employee payment batch
+2. **Encrypt Batch**: All employee data encrypted together
+3. **TEE Processing**: Batch processing inside secure enclave
+4. **Batch Voucher**: Single voucher for all payments
+5. **Execute Payments**: One transaction processes all employee payments
 
-testInvoice().catch(console.error);
-EOF
+### Technical Flow Example
+
+```javascript
+// 1. User creates invoice
+const invoiceData = {
+  recipientAddress: "0x123...",
+  amount: "1000000000", // USDC with 6 decimals
+  invoiceNumber: "INV-001",
+  dueDate: "2024-12-31"
+};
+
+// 2. Encrypt with DataProtector
+const protectedData = await dataProtector.protectData({
+  data: invoiceData,
+  name: "Invoice-001"
+});
+
+// 3. Process in TEE
+const result = await dataProtector.processProtectedData({
+  protectedData: protectedData.address,
+  app: INVOICE_IAPP_ADDRESS
+});
+
+// 4. Get signed voucher
+const voucher = await getResult(result.taskId);
+
+// 5. Claim payment on-chain
+await settlementContract.claimVoucher(voucher);
 ```
 
-### Test Payroll Batch (CLI)
+## 📁 Project Structure
 
-```bash
-node << 'EOF'
-const { IExecDataProtector } = require('@iexec/dataprotector');
-const { ethers } = require('ethers');
-
-async function testPayroll() {
-  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-  const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-  const dataProtector = new IExecDataProtector(wallet);
-  
-  console.log('Creating test payroll batch...');
-  
-  const batch = {
-    metadata: {
-      batchId: 'BATCH-TEST-001',
-      payPeriodStart: Date.now() - (14 * 24 * 60 * 60 * 1000),
-      payPeriodEnd: Date.now() - (24 * 60 * 60 * 1000),
-      payDate: Date.now() + (24 * 60 * 60 * 1000),
-      status: 'APPROVED',
-      frequency: 'BIWEEKLY'
-    },
-    employees: [
-      {
-        id: 'EMP-001',
-        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0fA9b',
-        personalInfo: {
-          name: 'John Doe',
-          employeeId: 'EMP-001',
-          department: 'Engineering'
-        },
-        compensation: {
-          hoursWorked: 80,
-          hourlyRate: '50000000', // $50/hr in USDC (6 decimals)
-          netPay: '4000000000' // $4000 after deductions
-        },
-        paymentInfo: {
-          tokenContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-          chainId: 421614
-        }
-      },
-      {
-        id: 'EMP-002',
-        walletAddress: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199',
-        personalInfo: {
-          name: 'Jane Smith',
-          employeeId: 'EMP-002',
-          department: 'Marketing'
-        },
-        compensation: {
-          hoursWorked: 80,
-          hourlyRate: '45000000',
-          netPay: '3600000000'
-        },
-        paymentInfo: {
-          tokenContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-          chainId: 421614
-        }
-      }
-    ],
-    summary: {
-      totalEmployees: 2,
-      totalNetPay: '7600000000'
-    }
-  };
-  
-  const { address } = await dataProtector.protectData({
-    data: batch,
-    name: 'Test Payroll Batch'
-  });
-  console.log('✅ Protected at:', address);
-  
-  await dataProtector.grantAccess({
-    protectedData: address,
-    authorizedApp: process.env.PAYROLL_IAPP_ADDRESS,
-    authorizedUser: ethers.ZeroAddress
-  });
-  console.log('✅ Access granted');
-  
-  const { taskId } = await dataProtector.processProtectedData({
-    protectedData: address,
-    app: process.env.PAYROLL_IAPP_ADDRESS
-  });
-  console.log('✅ Processing batch...');
-  console.log('Task ID:', taskId);
-}
-
-testPayroll().catch(console.error);
-EOF
+```
+confi-platform/
+├── contracts/                     # Smart contracts
+│   └── ConfidentialFinanceSettlement.sol
+├── src/
+│   ├── iapp/                     # TEE applications
+│   │   ├── invoiceProcessor.js  # Invoice processing logic
+│   │   ├── payrollProcessor.js  # Payroll batch processing
+│   │   ├── Dockerfile.invoice   # Invoice container config
+│   │   ├── Dockerfile.payroll   # Payroll container config
+│   │   ├── iapp.config.json     # iApp configuration
+│   │   └── cache/               # Deployment artifacts
+│   ├── frontend/                 # React application
+│   │   ├── components/          # UI components
+│   │   │   ├── InvoiceCreation.jsx
+│   │   │   ├── PayrollDashboard.jsx
+│   │   │   ├── VoucherClaim.jsx
+│   │   │   └── Navigation.jsx
+│   │   ├── hooks/              # Custom React hooks
+│   │   │   ├── useDataProtector.js
+│   │   │   └── useSettlement.js
+│   │   └── styles/             # CSS styles
+│   └── sdk/                    # JavaScript SDK
+│       ├── ConFiClient.js      # Main SDK client
+│       └── types.d.ts          # TypeScript definitions
+├── scripts/                     # Deployment & setup scripts
+│   ├── deploy-contracts.js     # Smart contract deployment
+│   ├── setup-complete.js       # Complete setup automation
+│   ├── deploy-iapps-fixed.sh   # iApp deployment script
+│   └── verify-deployment.js    # Deployment verification
+├── deployed.json               # Deployment tracking
+├── signing-keys.json          # Generated keys (DO NOT COMMIT)
+├── .env                       # Environment variables (DO NOT COMMIT)
+├── package.json               # Node dependencies
+└── README.md                  # This file
 ```
 
-### Using the Frontend
-
-1. **Navigate to the app:**
-   ```bash
-   open http://localhost:3000
-   ```
-
-2. **Create an Invoice:**
-   - Go to `/invoice`
-   - Fill in client details
-   - Add line items with descriptions, quantities, prices
-   - Click "Create Invoice"
-   - Wait for TEE processing (30-60s)
-   - Download signed voucher
-
-3. **Process Payroll:**
-   - Go to `/payroll`
-   - Add employees with wallet addresses
-   - Enter hours worked and pay rates
-   - Click "Process Payroll Batch"
-   - Wait for batch processing
-   - Download all vouchers
-
-4. **Claim Payments:**
-   - Go to `/claim`
-   - Paste voucher JSON
-   - Click "Verify and Claim"
-   - Approve MetaMask transaction
-
----
-
-## 📊 Monitoring & Debugging
-
-### Monitor Task Execution
+## 🔧 Available Scripts
 
 ```bash
-# Check task status
-iexec task show <TASK_ID> --chain arbitrum-sepolia
+# Development
+npm run dev                    # Start development server
+npm run build                 # Build for production
+npm test                      # Run test suite
 
-# Download results
-iexec task show <TASK_ID> --download --chain arbitrum-sepolia
+# Deployment
+npm run deploy:contracts      # Deploy settlement contract
+npm run setup:complete        # Generate keys and configure
+npm run deploy:iapps         # Deploy TEE applications
 
-# View on Explorer
-open https://explorer.iex.ec/arbitrum-sepolia/<TASK_ID>
+# Utilities
+npm run verify               # Verify deployment status
+npm run clean               # Clean build artifacts
 ```
 
-### Debug iApp Locally
+## 🧪 Testing
+
+### Test iApp Locally
 
 ```bash
-# Create test fixtures
-mkdir -p src/iapp/test/fixtures
-cat > src/iapp/test/fixtures/protectedData.json << 'EOF'
-{
-  "recipientAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0fA9b",
-  "tokenContract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  "amount": "1000000000"
-}
-EOF
-
-# Run invoice processor locally
 cd src/iapp
-mkdir -p test/output
 
-IEXEC_IN=./test/fixtures \
-IEXEC_OUT=./test/output \
-IEXEC_TASK_ID=test-local-123 \
-VOUCHER_SIGNING_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-node invoiceProcessor.js
+# Basic test (will show if configuration is correct)
+iapp test
 
-# Check output
-cat test/output/result.json
+# Test with mock signing key
+VOUCHER_SIGNING_KEY=0xTestKey123 node invoiceProcessor.js
 ```
 
-### View Logs
+### Verify Smart Contract
 
 ```bash
-# iExec worker logs
-iexec task show <TASK_ID> --logs
+# Check if signer is authorized
+cast call $SETTLEMENT_CONTRACT \
+  "authorizedSigners(address)(bool)" \
+  $(cat signing-keys.json | jq -r .invoice.address) \
+  --rpc-url $RPC_URL
 
-# Docker logs (if running locally)
-docker logs <container_id>
+# Expected output: true
 ```
 
----
+### Test Frontend
 
-## 🔧 Configuration Reference
-
-### Chain Configuration (`chain.json`)
-
-```json
-{
-  "default": "arbitrum",
-  "chains": {
-    "arbitrum": {
-      "id": "42161",
-      "rpc": "https://arb1.arbitrum.io/rpc",
-      "hub": "0x3eca1B216A7DF1C7689aEb259fFB83ADFB894E7f",
-      "native": "ETH"
-    },
-    "arbitrum-sepolia": {
-      "id": "421614",
-      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
-      "hub": "0xC76A18c78B7e530A165c5683CB1aB134E21938B4",
-      "native": "ETH"
-    }
-  }
-}
-```
-
-### iExec Order Configuration
-
-Edit `iexec.json` to customize:
-- **appprice**: Price in nRLC (0 = free)
-- **volume**: Number of executions allowed
-- **tag**: TEE requirement (`0x...1` = TEE required)
-
-```json
-{
-  "order": {
-    "apporder": {
-      "app": "0xYourAppAddress",
-      "appprice": "0",
-      "volume": "1000000",
-      "tag": "0x0000000000000000000000000000000000000000000000000000000000000001"
-    }
-  }
-}
-```
-
----
+1. Start development server: `npm run dev`
+2. Open browser: `http://localhost:3000`
+3. Connect MetaMask to Arbitrum Sepolia
+4. Create test invoice
+5. Monitor task: `https://explorer.iex.ec/arbitrum-sepolia/<taskId>`
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+### Common Issues and Solutions
 
-#### 1. "No matching version found for @iexec/dataprotector"
-**Solution:** Package.json has been updated to use `2.0.0-beta.19`
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `VOUCHER_SIGNING_KEY not found` | App secret not configured | Run `npm run setup:complete` and redeploy |
+| `Invalid signer` | Signer not authorized in contract | Run `npm run setup:complete` |
+| `Unknown argument: app-secret` | Incorrect CLI usage | App secrets must be in `iapp.config.json` |
+| `dataProtector.protectData is not a function` | DataProtector not initialized | Check MetaMask connection |
+| `Insufficient balance` | No ETH or RLC | Get from testnet faucets |
+| `Platform warning` in Docker | ARM vs x86 architecture | Add `--platform linux/amd64` to docker build |
+| `Task timeout` | Processing taking too long | Check task on iExec Explorer |
+| `No wallet found` | Missing wallet configuration | Run `iapp wallet import` with your private key |
+
+### Debug Commands
+
 ```bash
-rm -rf node_modules package-lock.json
-npm install
+# View iApp deployment history
+cat src/iapp/cache/arbitrum-sepolia-testnet/deployments.json
+
+# Check signing keys (contains private keys - be careful!)
+cat signing-keys.json
+
+# Monitor task execution
+iexec task show <TASK_ID> --chain arbitrum-sepolia
+
+# View task logs
+iexec task show <TASK_ID> --logs --chain arbitrum-sepolia
+
+# Download task results
+iexec task show <TASK_ID> --download --chain arbitrum-sepolia
 ```
 
-#### 2. "Insufficient RLC balance"
-**Solution:** Get more RLC from faucet
-```bash
-open https://explorer.iex.ec/arbitrum-sepolia/faucet
-# Claim RLC tokens (requires testnet ETH for gas)
-```
+## 📊 Current Deployment Status
 
-#### 3. "Task timeout" or "Task failed"
-**Solution:** Check task on explorer
-```bash
-open https://explorer.iex.ec/arbitrum-sepolia/<TASK_ID>
-```
-Common causes:
-- Insufficient worker availability (retry later)
-- Docker image not accessible (check DockerHub)
-- SMS secret not configured (rerun `setup:signers`)
+### Arbitrum Sepolia Testnet
 
-#### 4. "Docker build failed"
-**Solution:** Ensure Docker is running
-```bash
-docker info
-# If error, start Docker Desktop
-```
+| Component | Address | Status |
+|-----------|---------|--------|
+| Settlement Contract | `0x996b21dB6deD9D7D763C98d64EA536cf51061887` | ✅ Deployed |
+| Invoice iApp | `0x2E7C6b329f2F96c8ee2D915Bd1f50370d84604C5` | ✅ Deployed |
+| Payroll iApp | `[Pending Deployment]` | ⏳ Pending |
 
-#### 5. "Cannot find module '@iexec/dataprotector'"
-**Solution:** Reinstall dependencies
-```bash
-npm install --save-exact @iexec/dataprotector@2.0.0-beta.19
-```
+### Docker Images
 
-#### 6. "Signer not authorized"
-**Solution:** Rerun signer setup
-```bash
-npm run setup:signers
-```
+- Invoice Processor: `hugser/confi-invoice:latest`
+- Payroll Processor: `hugser/confi-payroll:latest`
 
-#### 7. MetaMask "Wrong network"
-**Solution:** Switch to Arbitrum Sepolia
-```bash
-# Network Details:
-# Network Name: Arbitrum Sepolia
-# RPC URL: https://sepolia-rollup.arbitrum.io/rpc
-# Chain ID: 421614
-# Currency Symbol: ETH
-# Block Explorer: https://sepolia.arbiscan.io
-```
+## 🔐 Security Considerations
 
----
+1. **Never commit private keys**: Add `signing-keys.json` and `.env` to `.gitignore`
+2. **Use hardware wallets** for production deployments
+3. **Audit smart contracts** before mainnet deployment
+4. **Rotate signing keys** periodically
+5. **Monitor gas prices** for optimal transaction timing
+6. **Verify all addresses** before sending transactions
 
-## 📖 Documentation
+## 🔗 Resources
 
-- **iExec Documentation**: https://docs.iex.ec
-- **DataProtector Guide**: https://tools.docs.iex.ec/tools/dataProtector
-- **iExec Explorer**: https://explorer.iex.ec
-- **Arbitrum Docs**: https://docs.arbitrum.io
+- [iExec Explorer](https://explorer.iex.ec/arbitrum-sepolia) - Monitor tasks and transactions
+- [iApp Generator Documentation](https://tools.docs.iex.ec/tools/iapp-generator) - iApp development guide
+- [DataProtector SDK](https://tools.docs.iex.ec/tools/dataProtector) - Data encryption documentation
+- [iExec Protocol Documentation](https://protocol.docs.iex.ec) - Protocol details
+- [Arbitrum Sepolia Faucet](https://faucet.quicknode.com/arbitrum/sepolia) - Get testnet ETH
+- [RLC Faucet](https://explorer.iex.ec/arbitrum-sepolia/faucet) - Get RLC tokens
 
----
+## 📈 Roadmap
+
+- [x] Smart contract deployment
+- [x] Invoice processor iApp
+- [ ] Payroll processor iApp
+- [ ] Frontend wallet integration
+- [ ] Batch payment optimization
+- [ ] QuickBooks integration
+- [ ] Mainnet deployment
+- [ ] Mobile application
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-### Development Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/my-feature
-
-# Make changes
-# ...
-
-# Run tests
-npm test
-
-# Build and verify
-npm run build
-
-# Commit with conventional commits
-git commit -m "feat: add recurring invoice support"
-
-# Push and create PR
-git push origin feature/my-feature
-```
-
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
 
 ## 📄 License
 
-MIT License
+MIT License 

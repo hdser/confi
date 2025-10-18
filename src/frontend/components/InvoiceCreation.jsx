@@ -1,69 +1,88 @@
 import React, { useState } from 'react';
-import { IExecDataProtector } from '@iexec/dataprotector';
 import { ethers } from 'ethers';
+import useDataProtector from '../hooks/useDataProtector';
 
 const InvoiceCreation = () => {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [voucher, setVoucher] = useState(null);
+  const [taskId, setTaskId] = useState(null);
+  
+  const {
+    protectData,
+    grantAccess,
+    processProtectedData,
+    getResult,
+    connected,
+    reconnect,
+    error: dpError
+  } = useDataProtector();
 
-  const INVOICE_IAPP_ADDRESS = process.env.REACT_APP_INVOICE_IAPP_ADDRESS;
+  const INVOICE_IAPP_ADDRESS = process.env.REACT_APP_INVOICE_IAPP_ADDRESS || 
+                               '0x2E7C6b329f2F96c8ee2D915Bd1f50370d84604C5';
 
   const handleCreateInvoice = async (e) => {
     e.preventDefault();
+    
+    if (!connected) {
+      setStatus('Connecting to DataProtector...');
+      await reconnect();
+      if (!connected) {
+        setStatus('Failed to connect. Please check MetaMask.');
+        return;
+      }
+    }
+    
     setLoading(true);
-    setStatus('Initializing...');
+    setStatus('Initializing invoice creation...');
 
     try {
-      // Connect wallet
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send('eth_requestAccounts', []);
-      const signer = await provider.getSigner();
-
-      // Initialize DataProtector with experimental flag for Arbitrum
-      const dataProtector = new IExecDataProtector(signer, {
-        allowExperimentalNetworks: true
-      });
-
-      // Create invoice data matching the iApp expected format
+      // Get form data
+      const formData = new FormData(e.target);
+      
+      // Create invoice data structure
       const invoiceData = {
-        payerAddress: e.target.payer.value,
-        recipientAddress: e.target.recipient.value,
-        tokenContract: e.target.token.value || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-        amount: ethers.parseUnits(e.target.amount.value, 6).toString(),
-        memo: e.target.memo.value,
-        dueDate: new Date(e.target.dueDate.value).toISOString(),
-        nonce: Date.now().toString()
+        recipientAddress: formData.get('recipient'),
+        tokenContract: formData.get('token') || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        amount: ethers.parseUnits(formData.get('amount'), 6).toString(),
+        timestamp: Date.now(),
+        nonce: ethers.hexlify(ethers.randomBytes(16)),
+        invoiceNumber: formData.get('invoiceNumber'),
+        memo: formData.get('memo'),
+        dueDate: new Date(formData.get('dueDate')).toISOString()
       };
 
       // Step 1: Protect the data
-      setStatus('Encrypting invoice data...');
-      const { address: protectedDataAddress } = await dataProtector.protectData({
-        data: invoiceData,
-        name: `Invoice-${Date.now()}`
-      });
-
+      setStatus('Step 1/4: Encrypting invoice data...');
+      const protectedDataResult = await protectData(
+        invoiceData, 
+        `Invoice-${invoiceData.invoiceNumber}`
+      );
+      
+      const protectedDataAddress = protectedDataResult.address;
       console.log('Protected data address:', protectedDataAddress);
 
       // Step 2: Grant access to the iApp
-      setStatus('Granting access to confidential processor...');
-      await dataProtector.grantAccess({
-        protectedData: protectedDataAddress,
-        authorizedApp: INVOICE_IAPP_ADDRESS,
-        authorizedUser: ethers.ZeroAddress // Anyone can process
-      });
+      setStatus('Step 2/4: Granting access to TEE processor...');
+      await grantAccess(
+        protectedDataAddress,
+        INVOICE_IAPP_ADDRESS,
+        ethers.ZeroAddress
+      );
 
-      // Step 3: Process the protected data
-      setStatus('Processing invoice in TEE...');
-      const { taskId } = await dataProtector.processProtectedData({
-        protectedData: protectedDataAddress,
-        app: INVOICE_IAPP_ADDRESS
-      });
+      // Step 3: Process in TEE
+      setStatus('Step 3/4: Processing invoice in TEE...');
+      const processResult = await processProtectedData(
+        protectedDataAddress,
+        INVOICE_IAPP_ADDRESS
+      );
+      
+      const currentTaskId = processResult.taskId;
+      setTaskId(currentTaskId);
+      console.log('Task ID:', currentTaskId);
 
-      console.log('Task ID:', taskId);
-
-      // Step 4: Wait for completion and get result
-      setStatus('Waiting for voucher generation...');
+      // Step 4: Poll for result
+      setStatus('Step 4/4: Waiting for voucher generation (30-90 seconds)...');
       let result = null;
       let attempts = 0;
       const maxAttempts = 30;
@@ -72,10 +91,10 @@ const InvoiceCreation = () => {
         await new Promise(resolve => setTimeout(resolve, 5000));
         
         try {
-          result = await dataProtector.getResultFromCompletedTask({ taskId });
+          result = await getResult(currentTaskId);
           if (result) {
             setVoucher(result);
-            setStatus('Invoice processed successfully!');
+            setStatus('✅ Invoice processed successfully!');
             console.log('Voucher:', result);
           }
         } catch (err) {
@@ -84,74 +103,151 @@ const InvoiceCreation = () => {
           }
         }
         attempts++;
+        setStatus(`Step 4/4: Waiting for voucher... (${attempts * 5}s)`);
       }
 
       if (!result) {
-        throw new Error('Task timeout');
+        throw new Error('Processing timeout - check task on iExec Explorer');
       }
 
     } catch (error) {
       console.error('Error:', error);
-      setStatus(`Error: ${error.message}`);
+      setStatus(`❌ Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const downloadVoucher = () => {
+    if (!voucher) return;
+    
+    const dataStr = JSON.stringify(voucher, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', dataUri);
+    link.setAttribute('download', `voucher-${Date.now()}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
     <div className="invoice-creation">
       <h2>Create Confidential Invoice</h2>
       
+      {dpError && (
+        <div className="error-message">
+          ⚠️ DataProtector Error: {dpError}
+        </div>
+      )}
+      
       <form onSubmit={handleCreateInvoice}>
-        <input
-          name="payer"
-          placeholder="Payer Address (0x...)"
-          required
-        />
+        <div className="form-group">
+          <label>Invoice Number *</label>
+          <input
+            name="invoiceNumber"
+            placeholder="INV-001"
+            required
+            disabled={loading}
+          />
+        </div>
         
-        <input
-          name="recipient"
-          placeholder="Recipient Address (0x...)"
-          required
-        />
+        <div className="form-group">
+          <label>Recipient Address *</label>
+          <input
+            name="recipient"
+            placeholder="0x..."
+            pattern="^0x[a-fA-F0-9]{40}$"
+            required
+            disabled={loading}
+          />
+        </div>
         
-        <input
-          name="amount"
-          type="number"
-          step="0.01"
-          placeholder="Amount (USDC)"
-          required
-        />
+        <div className="form-group">
+          <label>Amount (USDC) *</label>
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder="100.00"
+            required
+            disabled={loading}
+          />
+        </div>
         
-        <input
-          name="token"
-          placeholder="Token Contract (optional)"
-        />
+        <div className="form-group">
+          <label>Token Contract (optional)</label>
+          <input
+            name="token"
+            placeholder="Default: USDC (0xA0b8...)"
+            pattern="^0x[a-fA-F0-9]{40}$"
+            disabled={loading}
+          />
+        </div>
         
-        <input
-          name="dueDate"
-          type="date"
-          required
-        />
+        <div className="form-group">
+          <label>Due Date *</label>
+          <input
+            name="dueDate"
+            type="date"
+            required
+            disabled={loading}
+          />
+        </div>
         
-        <textarea
-          name="memo"
-          placeholder="Invoice memo/description"
-          required
-        />
+        <div className="form-group">
+          <label>Memo/Description *</label>
+          <textarea
+            name="memo"
+            rows="3"
+            placeholder="Invoice for consulting services..."
+            required
+            disabled={loading}
+          />
+        </div>
         
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading || !connected}>
           {loading ? 'Processing...' : 'Create Invoice'}
         </button>
+        
+        {!connected && (
+          <button type="button" onClick={reconnect}>
+            Connect Wallet
+          </button>
+        )}
       </form>
 
-      {status && <div className="status">{status}</div>}
+      {status && (
+        <div className={`status ${status.includes('✅') ? 'success' : ''} ${status.includes('❌') ? 'error' : ''}`}>
+          {status}
+        </div>
+      )}
+      
+      {taskId && (
+        <div className="task-info">
+          <p>Task ID: {taskId}</p>
+          <a 
+            href={`https://explorer.iex.ec/arbitrum-sepolia/${taskId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on iExec Explorer →
+          </a>
+        </div>
+      )}
       
       {voucher && (
         <div className="voucher-display">
           <h3>Payment Voucher Generated</h3>
           <pre>{JSON.stringify(voucher, null, 2)}</pre>
-          <p>Send this voucher to the payer for payment</p>
+          <div className="voucher-actions">
+            <button onClick={downloadVoucher}>
+              Download Voucher
+            </button>
+            <p>Send this voucher to the payer for payment</p>
+          </div>
         </div>
       )}
     </div>

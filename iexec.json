@@ -1,72 +1,19 @@
 {
-  "description": "ConFi Platform iExec Configuration",
-  "version": "5",
+  "description": "ConFi Invoice Processor - Privacy-preserving invoicing and payroll on iExec confidential computing infrastructure",
+  "version": "1.0.0",
+  "license": "MIT",
+  "author": "ConFi Team",
+  "social": {
+    "website": "https://github.com/your-org/confi-platform",
+    "github": "https://github.com/your-org/confi-platform"
+  },
+  "logo": "logo.png",
   "app": {
-    "owner": "0x0000000000000000000000000000000000000000",
-    "name": "ConFi Finance Processor",
+    "owner": "0x6Fa6927e1D00519aEb2925d1A0AEF2aDe6f09330",
+    "name": "ConFi Invoice Processor",
     "type": "DOCKER",
-    "multiaddr": "docker.io/confi/processor:latest",
+    "multiaddr": "docker.io/hugser/confi-invoice:latest",
     "checksum": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "mrenclave": ""
-  },
-  "dataset": {
-    "owner": "0x0000000000000000000000000000000000000000",
-    "name": "",
-    "multiaddr": "",
-    "checksum": ""
-  },
-  "workerpool": {
-    "owner": "0x0000000000000000000000000000000000000000",
-    "description": "ConFi TEE Workerpool"
-  },
-  "requester": {
-    "owner": "0x0000000000000000000000000000000000000000"
-  },
-  "order": {
-    "apporder": {
-      "app": "0x0000000000000000000000000000000000000000",
-      "appprice": "0",
-      "volume": "1000000",
-      "tag": "0x0000000000000000000000000000000000000000000000000000000000000001",
-      "datasetrestrict": "0x0000000000000000000000000000000000000000",
-      "workerpoolrestrict": "0x0000000000000000000000000000000000000000",
-      "requesterrestrict": "0x0000000000000000000000000000000000000000"
-    },
-    "datasetorder": {
-      "dataset": "0x0000000000000000000000000000000000000000",
-      "datasetprice": "0",
-      "volume": "1000000",
-      "tag": "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "apprestrict": "0x0000000000000000000000000000000000000000",
-      "workerpoolrestrict": "0x0000000000000000000000000000000000000000",
-      "requesterrestrict": "0x0000000000000000000000000000000000000000"
-    },
-    "workerpoolorder": {
-      "workerpool": "0x0000000000000000000000000000000000000000",
-      "workerpoolprice": "0",
-      "volume": "1000000",
-      "tag": "0x0000000000000000000000000000000000000000000000000000000000000001",
-      "category": "0",
-      "trust": "0",
-      "apprestrict": "0x0000000000000000000000000000000000000000",
-      "datasetrestrict": "0x0000000000000000000000000000000000000000",
-      "requesterrestrict": "0x0000000000000000000000000000000000000000"
-    },
-    "requestorder": {
-      "app": "0x0000000000000000000000000000000000000000",
-      "appmaxprice": "1000000000",
-      "dataset": "0x0000000000000000000000000000000000000000",
-      "datasetmaxprice": "0",
-      "workerpool": "0x0000000000000000000000000000000000000000",
-      "workerpoolmaxprice": "1000000000",
-      "requester": "0x0000000000000000000000000000000000000000",
-      "volume": "1",
-      "tag": "0x0000000000000000000000000000000000000000000000000000000000000001",
-      "category": "0",
-      "trust": "0",
-      "beneficiary": "0x0000000000000000000000000000000000000000",
-      "callback": "0x0000000000000000000000000000000000000000",
-      "params": ""
-    }
   }
 }
