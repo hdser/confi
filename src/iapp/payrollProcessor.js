@@ -1,162 +1,189 @@
-const fs = require('fs').promises;
-const path = require('path');
-const { ethers } = require('ethers');
+import fs from 'node:fs/promises';
+import { ethers } from 'ethers';
+import { IExecDataProtectorDeserializer } from '@iexec/dataprotector-deserializer';
 
 async function main() {
-  try {
-    const iexecIn = process.env.IEXEC_IN;
-    const iexecOut = process.env.IEXEC_OUT;
-    const taskId = process.env.IEXEC_TASK_ID;
-    const signingKey = process.env.VOUCHER_SIGNING_KEY || process.env.IEXEC_APP_DEVELOPER_SECRET;
+  const { IEXEC_OUT } = process.env;
+  let computedJsonObj = {};
 
-    if (!signingKey) {
-      throw new Error("VOUCHER_SIGNING_KEY not found");
+  try {
+    console.log('🔐 Starting confidential payroll processor...');
+    
+    const taskId = process.env.IEXEC_TASK_ID || 'test-task-id';
+    const { IEXEC_APP_DEVELOPER_SECRET } = process.env;
+
+    if (!IEXEC_APP_DEVELOPER_SECRET) {
+      throw new Error('IEXEC_APP_DEVELOPER_SECRET not found in environment');
     }
 
-    console.log("Starting payroll batch processor...");
-    console.log("Task ID:", taskId);
+    console.log('Task ID:', taskId);
 
-    // Load payroll batch data
-    const inputPath = path.join(iexecIn, 'protectedData.json');
-    const batchData = JSON.parse(await fs.readFile(inputPath, 'utf8'));
+    // Initialize deserializer for protected data
+    const deserializer = new IExecDataProtectorDeserializer();
+    
+    console.log('📥 Reading protected payroll data...');
 
-    console.log(`Processing payroll batch: ${batchData.metadata.batchId}`);
-    console.log(`Number of employees: ${batchData.employees.length}`);
+    // Read batch metadata fields individually
+    let batchId, payDate, totalEmployees, employeesData;
+    
+    try {
+      batchId = await deserializer.getValue('batchId', 'string');
+      console.log('✅ Batch ID loaded');
+    } catch (e) {
+      console.error('❌ Missing batchId:', e.message);
+      throw new Error('Required field "batchId" not found in protected data');
+    }
+
+    try {
+      payDate = await deserializer.getValue('payDate', 'string');
+      console.log('✅ Pay date loaded');
+    } catch (e) {
+      console.log('⚠️ No pay date provided, using current timestamp');
+      payDate = String(Date.now());
+    }
+
+    try {
+      totalEmployees = await deserializer.getValue('totalEmployees', 'string');
+      console.log('✅ Total employees:', totalEmployees);
+    } catch (e) {
+      console.log('⚠️ Total employees count not provided');
+      totalEmployees = '0';
+    }
+
+    try {
+      employeesData = await deserializer.getValue('employeesData', 'string');
+      console.log('✅ Employee data loaded');
+    } catch (e) {
+      console.error('❌ Missing employeesData:', e.message);
+      throw new Error('Required field "employeesData" not found in protected data');
+    }
+
+    // Parse the employees JSON string
+    let employees;
+    try {
+      employees = JSON.parse(employeesData);
+      console.log(`✅ Parsed ${employees.length} employees`);
+    } catch (e) {
+      console.error('❌ Failed to parse employee data:', e.message);
+      throw new Error('Invalid employee data format');
+    }
+
+    if (!Array.isArray(employees) || employees.length === 0) {
+      throw new Error('Employee data must be a non-empty array');
+    }
+
+    // Parse app secret to get signing key
+    let signingKey;
+    try {
+      const appSecrets = JSON.parse(IEXEC_APP_DEVELOPER_SECRET);
+      signingKey = appSecrets.VOUCHER_SIGNING_KEY || appSecrets.signingKey || IEXEC_APP_DEVELOPER_SECRET;
+    } catch {
+      // If not JSON, use directly
+      signingKey = IEXEC_APP_DEVELOPER_SECRET;
+    }
 
     const wallet = new ethers.Wallet(signingKey);
+    console.log('Signing with wallet:', wallet.address);
     
-    // Prepare batch payment data
-    const recipients = [];
-    const amounts = [];
-    let totalAmount = ethers.BigNumber.from(0);
+    // Process individual vouchers for each employee
+    const vouchers = [];
     
-    // Extract all recipients and amounts
-    for (const employee of batchData.employees) {
-      recipients.push(employee.walletAddress);
-      amounts.push(employee.compensation.netPay);
-      totalAmount = totalAmount.add(ethers.BigNumber.from(employee.compensation.netPay));
+    for (const employee of employees) {
+      if (!employee.walletAddress) {
+        throw new Error(`Employee ${employee.id || 'unknown'} missing wallet address`);
+      }
+      if (!employee.netPay) {
+        throw new Error(`Employee ${employee.id || 'unknown'} missing net pay amount`);
+      }
+      
+      const tokenContract = employee.tokenContract || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const timestamp = Date.now();
+      const nonce = ethers.hexlify(ethers.randomBytes(16));
+      
+      // Create voucher data for this employee
+      const voucherData = {
+        recipient: employee.walletAddress,
+        tokenContract: tokenContract,
+        amount: employee.netPay,
+        taskId: `${taskId}-${employee.id}`,
+        timestamp: timestamp,
+        nonce: nonce
+      };
+      
+      // Create signature
+      const types = ['address', 'address', 'uint256', 'string', 'uint256', 'string'];
+      const values = [
+        voucherData.recipient,
+        voucherData.tokenContract,
+        voucherData.amount,
+        voucherData.taskId,
+        voucherData.timestamp,
+        voucherData.nonce
+      ];
+      
+      const messageHash = ethers.solidityPackedKeccak256(types, values);
+      const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+      
+      vouchers.push({
+        employeeId: employee.id,
+        employeeName: employee.name || `Employee ${employee.id}`,
+        data: voucherData,
+        signature: signature,
+        signerAddress: wallet.address
+      });
     }
 
-    // Assume all employees use the same token (typically the case)
-    const tokenContract = batchData.employees[0].paymentInfo.tokenContract || 
-                          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC default
+    console.log(`✅ Generated ${vouchers.length} payment vouchers`);
 
-    const timestamp = Date.now();
-    const nonce = ethers.hexlify(ethers.randomBytes(16));
-
-    // Create batch voucher data
-    const batchVoucherData = {
-      tokenContract: tokenContract,
-      recipients: recipients,
-      amounts: amounts,
-      taskId: taskId,
-      timestamp: timestamp,
-      nonce: nonce,
-      batchId: batchData.metadata.batchId,
-      totalAmount: totalAmount.toString()
-    };
-
-    // CRITICAL FIX: Sign the batch using proper hashing
-    // Hash arrays by encoding them first
-    const recipientsHash = ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(['address[]'], [recipients])
-    );
-    const amountsHash = ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(['uint256[]'], [amounts])
+    // Calculate totals
+    const totalAmount = vouchers.reduce((sum, v) => 
+      sum + BigInt(v.data.amount), 0n
     );
 
-    // Create the message hash for batch payment
-    const types = ['address', 'bytes32', 'bytes32', 'string', 'uint256', 'string'];
-    const values = [
-      tokenContract,
-      recipientsHash,
-      amountsHash,
-      taskId,
-      timestamp,
-      nonce
-    ];
-    
-    const messageHash = ethers.solidityPackedKeccak256(types, values);
-    const signature = await wallet.signMessage(ethers.getBytes(messageHash));
-
-    console.log("Batch voucher signed by:", wallet.address);
-    console.log("Total amount to distribute:", ethers.formatUnits(totalAmount, 6), "USDC");
-
-    // Create the result with batch voucher
+    // Create the result
     const result = {
-      type: 'BATCH_PAYMENT',
-      batchId: batchData.metadata.batchId,
-      data: batchVoucherData,
-      signature: signature,
-      signerAddress: wallet.address,
+      type: 'PAYROLL_BATCH',
+      batchId: batchId,
+      vouchers: vouchers,
       summary: {
-        totalEmployees: recipients.length,
+        totalEmployees: vouchers.length,
         totalAmount: totalAmount.toString(),
-        tokenContract: tokenContract,
-        payDate: batchData.metadata.payDate,
-        processedAt: new Date().toISOString()
+        totalAmountFormatted: ethers.formatUnits(totalAmount, 6) + ' USDC',
+        payDate: payDate,
+        processedAt: new Date().toISOString(),
+        signerAddress: wallet.address
       }
     };
 
     // Write main result
-    const resultPath = path.join(iexecOut, 'result.json');
+    const resultPath = `${IEXEC_OUT}/result.json`;
     await fs.writeFile(resultPath, JSON.stringify(result, null, 2));
+    console.log('✅ Result written');
 
-    // Generate accounting export (ADP/QuickBooks format)
-    const accountingRecords = batchData.employees.map((emp, idx) => ({
-      employeeId: emp.id,
-      name: emp.personalInfo?.name || `Employee ${idx + 1}`,
-      department: emp.personalInfo?.department || 'N/A',
-      walletAddress: emp.walletAddress,
-      hoursWorked: emp.compensation.hoursWorked || 0,
-      grossPay: emp.compensation.earnings?.regular || emp.compensation.netPay,
-      netPay: emp.compensation.netPay,
-      paymentMethod: 'CRYPTO',
-      tokenContract: tokenContract,
-      currency: 'USDC',
-      payDate: new Date(batchData.metadata.payDate).toISOString().split('T')[0],
-      batchId: batchData.metadata.batchId
-    }));
+    console.log(`\n🎉 Payroll batch processed successfully!`);
+    console.log(`📊 Processed ${vouchers.length} payments`);
+    console.log(`💰 Total: ${ethers.formatUnits(totalAmount, 6)} USDC`);
 
-    // Write CSV export for accounting software
-    const csvHeader = 'EmployeeID,Name,Department,WalletAddress,HoursWorked,GrossPay,NetPay,PaymentMethod,Currency,PayDate,BatchID\n';
-    const csvRows = accountingRecords.map(rec => 
-      `${rec.employeeId},${rec.name},${rec.department},${rec.walletAddress},${rec.hoursWorked},` +
-      `${ethers.formatUnits(rec.grossPay, 6)},${ethers.formatUnits(rec.netPay, 6)},` +
-      `${rec.paymentMethod},${rec.currency},${rec.payDate},${rec.batchId}`
-    ).join('\n');
-
-    const csvPath = path.join(iexecOut, 'payroll_export.csv');
-    await fs.writeFile(csvPath, csvHeader + csvRows);
-
-    // Also write JSON format for modern systems
-    const jsonExportPath = path.join(iexecOut, 'payroll_export.json');
-    await fs.writeFile(jsonExportPath, JSON.stringify({
-      batchId: batchData.metadata.batchId,
-      payDate: batchData.metadata.payDate,
-      records: accountingRecords,
-      summary: {
-        totalEmployees: recipients.length,
-        totalNetPay: totalAmount.toString(),
-        currency: 'USDC',
-        processedBy: wallet.address,
-        processedAt: new Date().toISOString()
-      }
-    }, null, 2));
-
-    // Create computed.json for iExec
-    const computedPath = path.join(iexecOut, 'computed.json');
-    await fs.writeFile(computedPath, JSON.stringify({
+    // Build the computed.json object
+    computedJsonObj = {
       'deterministic-output-path': resultPath
-    }));
-
-    console.log(`✅ Payroll batch processed successfully`);
-    console.log(`Processed ${recipients.length} payments totaling ${ethers.formatUnits(totalAmount, 6)} USDC`);
-    console.log("Output files: result.json, payroll_export.csv, payroll_export.json");
+    };
 
   } catch (error) {
-    console.error("❌ Error during payroll processing:", error);
-    process.exit(1);
+    console.error('❌ ERROR during payroll processing:', error.message);
+    console.error('Stack trace:', error.stack);
+
+    // Build the computed.json object with error message
+    computedJsonObj = {
+      'deterministic-output-path': IEXEC_OUT,
+      'error-message': `Payroll processing failed: ${error.message}`
+    };
+  } finally {
+    // Save the computed.json file (REQUIRED)
+    await fs.writeFile(
+      `${IEXEC_OUT}/computed.json`,
+      JSON.stringify(computedJsonObj)
+    );
   }
 }
 

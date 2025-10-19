@@ -25,14 +25,11 @@ const VoucherClaim = () => {
       
       setActiveStep(1);
       setStatus('Verifying signature...');
-      const messageHash = ethers.keccak256(
-        ethers.toUtf8Bytes(JSON.stringify(voucherData.data))
-      );
-      const recoveredAddress = ethers.verifyMessage(
-        ethers.getBytes(messageHash), 
-        voucherData.signature
-      );
       
+      if (!window.ethereum) {
+        throw new Error('Please install MetaMask');
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
@@ -41,7 +38,7 @@ const VoucherClaim = () => {
       ];
       
       const settlementContract = new ethers.Contract(
-        process.env.REACT_APP_SETTLEMENT_CONTRACT,
+        process.env.REACT_APP_SETTLEMENT_CONTRACT || '0x996b21dB6deD9D7D763C98d64EA536cf51061887',
         settlementABI,
         signer
       );

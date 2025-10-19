@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const Navigation = ({ connected, account, network, onConnect }) => {
+const Navigation = ({ connected, account, network, onConnect, onDisconnect }) => {
   const getNetworkName = (chainId) => {
     switch (chainId) {
       case 1: return 'Ethereum';
       case 42161: return 'Arbitrum';
       case 421614: return 'Arbitrum Sepolia';
-      case 137: return 'Polygon';
       default: return `Chain ${chainId}`;
     }
   };
@@ -23,25 +22,30 @@ const Navigation = ({ connected, account, network, onConnect }) => {
         <Link to="/" className="nav-logo">
           ConFi
         </Link>
-        
+
         <div className="nav-links">
           <Link to="/" className="nav-link">Home</Link>
           <Link to="/invoice" className="nav-link">Invoices</Link>
           <Link to="/payroll" className="nav-link">Payroll</Link>
           <Link to="/claim" className="nav-link">Claim</Link>
         </div>
-        
+
         <div className="nav-wallet">
           {network && (
             <span className="network-badge">
               {getNetworkName(network)}
             </span>
           )}
-          
+
           {connected ? (
-            <span className="wallet-address">
-              🔓 {formatAddress(account)}
-            </span>
+            <>
+              <span className="wallet-address">
+                🔒 {formatAddress(account)}
+              </span>
+              <button className="disconnect-button" onClick={onDisconnect}>
+                Disconnect
+              </button>
+            </>
           ) : (
             <button className="connect-button" onClick={onConnect}>
               🔌 Connect Wallet

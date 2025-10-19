@@ -1,12 +1,10 @@
 {
   "name": "confi-iapps",
   "version": "1.0.0",
-  "description": "ConFi TEE Applications",
-  "scripts": {
-    "test": "node --test"
-  },
+  "type": "module",
+  "description": "ConFi TEE Applications for Confidential Invoice and Payroll Processing",
   "dependencies": {
-    "ethers": "^6.9.0",
-    "crypto-js": "^4.2.0"
+    "@iexec/dataprotector-deserializer": "^0.1.1",
+    "ethers": "^6.9.0"
   }
 }

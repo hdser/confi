@@ -1,20 +1,17 @@
-FROM node:20-alpine
+FROM node:22-alpine3.21
 
 WORKDIR /app
 
-# Copy package.json first
+# Copy package files
 COPY package.json ./
-RUN npm install --production
 
-# Copy application code
+# Install dependencies
+RUN npm install
+
+# Copy the processor script
 COPY payrollProcessor.js ./
 
-# Set up iExec environment
-ENV IEXEC_IN=/iexec_in
-ENV IEXEC_OUT=/iexec_out
+# The TEE transformation expects this structure
+RUN mkdir -p /iexec_out
 
-# Create directories
-RUN mkdir -p /iexec_in /iexec_out
-
-# Set entrypoint
 ENTRYPOINT ["node", "payrollProcessor.js"]

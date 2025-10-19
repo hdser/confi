@@ -1,0 +1,14 @@
+{
+  "default": "arbitrum-sepolia-testnet",
+  "chains": {
+    "mainnet": {},
+    "bellecour": {},
+    "arbitrum-mainnet": {},
+    "arbitrum-sepolia-testnet": {
+      "id": "421614",
+      "host": "https://sepolia-rollup.arbitrum.io/rpc",
+      "protocol": "https",
+      "type": "testnet"
+    }
+  }
+}
